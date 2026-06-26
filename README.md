@@ -53,7 +53,7 @@ JWT_SECRET=你的 JWT 密钥
 一键启动：
 
 ```powershell
-docker compose -f backend\docker-compose.yml up -d --build
+docker compose up -d --build
 ```
 
 访问地址：
@@ -69,7 +69,7 @@ docker compose -f backend\docker-compose.yml up -d --build
 查看容器状态：
 
 ```powershell
-docker compose -f backend\docker-compose.yml ps
+docker compose ps
 ```
 
 查看网关日志：
@@ -81,7 +81,7 @@ docker logs cafequeue-gateway-service --tail 100
 停止项目：
 
 ```powershell
-docker compose -f backend\docker-compose.yml down
+docker compose down
 ```
 
 后端单独打包：
