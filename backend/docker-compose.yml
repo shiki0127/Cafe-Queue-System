@@ -1,0 +1,206 @@
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: cafequeue-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:5.0.14
+    container_name: cafequeue-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  nacos:
+    image: nacos/nacos-server:v2.4.3
+    container_name: cafequeue-nacos
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    container_name: cafequeue-gateway-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      REDIS_HOST: redis
+      JWT_SECRET: ${JWT_SECRET}
+      ORDER_SERVICE_URL: http://order-service:8081
+      INVENTORY_SERVICE_URL: http://recipe-inventory-service:8082
+      QUEUE_SERVICE_URL: http://vending-queue-service:8083
+      NOTIFICATION_SERVICE_URL: http://notification-service:8084
+      COUPON_SERVICE_URL: http://marketing-coupon-service:8085
+      DEVICE_SERVICE_URL: http://vending-device-service:8086
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  order-service:
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    container_name: cafequeue-order-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      COUPON_SERVICE_URL: http://marketing-coupon-service:8085
+      INVENTORY_SERVICE_URL: http://recipe-inventory-service:8082
+      QUEUE_SERVICE_URL: http://vending-queue-service:8083
+      NOTIFICATION_SERVICE_URL: http://notification-service:8084
+      DEVICE_SERVICE_URL: http://vending-device-service:8086
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  recipe-inventory-service:
+    build:
+      context: .
+      dockerfile: services/recipe-inventory-service/Dockerfile
+    container_name: cafequeue-recipe-inventory-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  vending-queue-service:
+    build:
+      context: .
+      dockerfile: services/vending-queue-service/Dockerfile
+    container_name: cafequeue-vending-queue-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+    ports:
+      - "8083:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: cafequeue-notification-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "8084:8084"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  marketing-coupon-service:
+    build:
+      context: .
+      dockerfile: services/marketing-coupon-service/Dockerfile
+    container_name: cafequeue-marketing-coupon-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "8085:8085"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  vending-device-service:
+    build:
+      context: .
+      dockerfile: services/vending-device-service/Dockerfile
+    container_name: cafequeue-vending-device-service
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "8086:8086"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ""
+    container_name: cafequeue-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      gateway-service:
+        condition: service_started
+
+volumes:
+  mysql-data:
+  redis-data:

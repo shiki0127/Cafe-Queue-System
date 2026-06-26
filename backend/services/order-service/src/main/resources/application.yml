@@ -1,0 +1,47 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service
+  autoconfigure:
+    exclude:
+      - com.alibaba.cloud.nacos.endpoint.NacosDiscoveryEndpointAutoConfiguration
+      - org.springframework.cloud.autoconfigure.LifecycleMvcEndpointAutoConfiguration
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/cafequeue_order_db?useSSL=false&characterEncoding=utf8&serverTimezone=UTC
+    username: ${MYSQL_USER:cafequeue}
+    password: ${MYSQL_PASSWORD}
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+
+cafequeue:
+  clients:
+    marketing-coupon-service: ${COUPON_SERVICE_URL:http://marketing-coupon-service:8085}
+    recipe-inventory-service: ${INVENTORY_SERVICE_URL:http://recipe-inventory-service:8082}
+    vending-queue-service: ${QUEUE_SERVICE_URL:http://vending-queue-service:8083}
+    notification-service: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+    vending-device-service: ${DEVICE_SERVICE_URL:http://vending-device-service:8086}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
